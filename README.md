@@ -27,7 +27,7 @@ Here's examples of requests which are used with my web server (a2.jamesrobertson
 * /do/simplepubsub/debug
 * /do/simplepubsub/reset
 * /do/simplepubsub/publish?topic=test&message=13-jun-2013%2020:00
-* /do/simplepubsub/subscribe?topic=test?uri=druby://fortina:36400
+* /do/simplepubsub/subscribe?topic=test&uri=druby://fortina:36400
 
 Here's the Ruby Scripting file I used:
 
