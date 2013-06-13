@@ -36,7 +36,7 @@ Here's the Ruby Scripting file I used:
         <script>
         <![CDATA[
 
-          @simplepubsub = {}
+          @simplepubsub = {'#' => {}}
           'reset'
 
         ]]>
@@ -55,7 +55,7 @@ Here's the Ruby Scripting file I used:
         <script>
         <![CDATA[
 
-          topic = params[:topic]
+          topic = URI.unescape(params[:topic])
           uri = params[:uri]
           address = uri[/druby:\/\/([^:]+)/,1]
                 
@@ -93,16 +93,13 @@ Here's the Ruby Scripting file I used:
               echo = DRbObject.new nil, uri
               echo.message topic, msg
             end
+          end            
+
+          @simplepubsub['#'].values.each do |uri|
+            echo = DRbObject.new nil, uri
+            echo.message topic, msg
           end
-          
-          any_topic_subscribers = @simplepubsub['#']
-          
-          if any_topic_subscribers then
-            any_topic_subscribers.values.each do |uri|
-              echo = DRbObject.new nil, uri
-              echo.message topic, msg
-            end
-          end
+
           'published'
           
         ]]>
