@@ -32,7 +32,7 @@ module SimplePubSub
 
         DRb.start_service nil, Echo.new(&get_proc)
         r = open("http://#{@base_url}/do/simplepubsub/" + \
-        "subscribe?topic=#{topic}&uri=" + \
+        "subscribe?topic=#{URI.escape(topic)}&uri=" + \
           DRb.uri, 'UserAgent' => USER_AGENT){|x| x.read}
         DRb.thread.join
 
