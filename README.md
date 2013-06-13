@@ -73,16 +73,35 @@ Here's the Ruby Scripting file I used:
 
           require 'drb'    
           
-          return 'no topic subscribers' unless @simplepubsub.include? params[:topic]
+          topic = params[:topic]
+
+          if not @simplepubsub.include?(topic) and not @simplepubsub.include?('#') then
+            return 'no topic subscribers' 
+          end
+
           topic = URI.unescape(params[:topic])
           msg = URI.unescape(params[:msg] || params[:message])
           
 
           DRb.start_service
 
-          @simplepubsub[topic].values.each do |uri|
-            echo = DRbObject.new nil, uri
-            echo.message topic, msg
+          topic_subscribers = @simplepubsub[topic]
+          
+          if topic_subscribers then
+            topic_subscribers.values.each do |uri|
+              next if @simplepubsub['#'].values.include? uri              
+              echo = DRbObject.new nil, uri
+              echo.message topic, @simplepubsub['#'].values.inspect + '__' + uri.inspect + msg
+            end
+          end
+          
+          any_topic_subscribers = @simplepubsub['#']
+          
+          if any_topic_subscribers then
+            any_topic_subscribers.values.each do |uri|
+              echo = DRbObject.new nil, uri
+              echo.message topic, msg
+            end
           end
           'published'
           
