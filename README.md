@@ -91,7 +91,7 @@ Here's the Ruby Scripting file I used:
             topic_subscribers.values.each do |uri|
               next if @simplepubsub['#'].values.include? uri              
               echo = DRbObject.new nil, uri
-              echo.message topic, @simplepubsub['#'].values.inspect + '__' + uri.inspect + msg
+              echo.message topic, msg
             end
           end
           
