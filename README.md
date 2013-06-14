@@ -36,7 +36,7 @@ Here's the Ruby Scripting file I used:
         <script>
         <![CDATA[
 
-          @simplepubsub = {'#' => {}}
+          @simplepubsub = {'#' => []}
           'reset'
 
         ]]>
@@ -59,8 +59,8 @@ Here's the Ruby Scripting file I used:
           uri = params[:uri]
           address = uri[/druby:\/\/([^:]+)/,1]
                 
-          @simplepubsub[topic] ||= {}
-          @simplepubsub[topic].merge!({address => uri})
+          @simplepubsub[topic] ||= []
+          @simplepubsub[topic] << uri
           
           'subscribed' + uri.inspect
 
@@ -73,13 +73,13 @@ Here's the Ruby Scripting file I used:
 
           require 'drb'    
           
-          topic = params[:topic]
-
+          topic = URI.unescape(params[:topic])
+          
           if not @simplepubsub.include?(topic) and not @simplepubsub.include?('#') then
             return 'no topic subscribers' 
           end
 
-          topic = URI.unescape(params[:topic])
+          
           msg = URI.unescape(params[:msg] || params[:message])
           
 
@@ -88,16 +88,31 @@ Here's the Ruby Scripting file I used:
           topic_subscribers = @simplepubsub[topic]
           
           if topic_subscribers then
-            topic_subscribers.values.each do |uri|
-              next if @simplepubsub['#'].values.include? uri              
+          
+            topic_subscribers.each do |uri|
+            
+              next if @simplepubsub['#'].include? uri              
               echo = DRbObject.new nil, uri
-              echo.message topic, msg
+              
+              begin
+                echo.message topic, msg
+              rescue DRb::DRbConnError => e             
+                @simplepubsub[topic].delete uri
+              end          
+              
             end
           end            
 
-          @simplepubsub['#'].values.each do |uri|
+          @simplepubsub['#'].each do |uri|
+          
             echo = DRbObject.new nil, uri
-            echo.message topic, msg
+            
+            begin
+              echo.message topic, msg
+            rescue DRb::DRbConnError => e             
+              @simplepubsub['#'].delete uri
+            end          
+
           end
 
           'published'
