@@ -6,7 +6,7 @@ require 'open-uri'
 require 'drb'
 
 
-USER_AGENT = 'SimplePubSub client 0.1'
+USER_AGENT = 'SimplePubSub client 0.2'
 
 module SimplePubSub
 
@@ -51,4 +51,81 @@ module SimplePubSub
       yield(PubSub.new base_url)
     end
   end
+  
+  class Server
+      
+    attr_reader :subscribers
+    
+    def initialize()
+      @subscribers = {'#' => []}
+      @bridges = {'#' => []}
+    end
+    
+    def subscribe(topic, uri)
+      @subscribers[topic] ||= []
+      @subscribers[topic] << uri      
+    end   
+    
+    def deliver(topic, msg)
+      
+      if not @subscribers.include?(topic) and \
+          not @subscribers.include?('#') then
+        return 'no topic subscribers' 
+      end
+                 
+
+      DRb.start_service
+
+      topic_subscribers = @subscribers[topic]
+      
+      if topic_subscribers then
+      
+        topic_subscribers.each do |uri|
+        
+          next if @subscribers['#'].include? uri              
+          echo = DRbObject.new nil, uri
+          
+          begin
+            echo.message topic, msg
+          rescue DRb::DRbConnError => e             
+            @subscribers[topic].delete uri
+          end          
+          
+        end
+      end            
+
+      @subscribers['#'].each do |uri|
+      
+        echo = DRbObject.new nil, uri
+        
+        begin
+          echo.message topic, msg
+        rescue DRb::DRbConnError => e             
+          @subscribers['#'].delete uri
+        end          
+
+      end
+    end
+    
+    def add_bridge(topic, hostname, address)
+      @bridges[topic] ||= {}
+      @bridges[topic].merge!(hostname => address)
+    end
+    
+    def bridge_deliver(topic, message, excluded_host=nil)
+      
+      if excluded_host then
+        bridges = @bridges[topic].select{|x| x != excluded_host}
+      else
+        bridges = @bridges[topic]
+      end
+      
+      bridges.each do |bridge|
+        url = "http://%s/do/simplepubsub/bridge_published?topic=%s&message=%s" % [address, topic, URI.escape(message)]
+        r = open(url, 'UserAgent' => USER_AGENT)
+      end
+    end
+    
+  end
+  
 end
