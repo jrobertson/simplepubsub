@@ -4,9 +4,10 @@
 
 require 'open-uri'
 require 'drb'
+require 'dws-registry'
 
 
-USER_AGENT = 'SimplePubSub client 0.2'
+USER_AGENT = 'SimplePubSub client 0.3'
 
 module SimplePubSub
 
@@ -56,15 +57,40 @@ module SimplePubSub
       
     attr_reader :subscribers, :bridges
     
-    def initialize(hostname)
+    def initialize(hostname, raw_reg='simplepubsub.xml')
+
+
+      h = {DWSRegistry: ->{raw_reg}, String: ->{DWSRegistry.new raw_reg}}
+
+      @reg = h[raw_reg.class.to_s.to_sym].call
+
+      # try to read the subscribers
+      topics = @reg.get_key 'hkey_apps/simplepubsub/subscription_topics'
+      
+      @subscribers = {'#' => []}     
+            
+      if topics then
+        topics.elements.each do |topic_element|
+          topic = topic_element.name
+          @subscribers[topic] ||= []
+          @subscribers[topic] = topic_element.elements[0].elements.map(&:value)
+        end
+      end      
+            
       @hostname = hostname
-      @subscribers = {'#' => []}
+
       @bridges = {'#' => []}
     end
     
     def subscribe(topic, uri)
       @subscribers[topic] ||= []
       @subscribers[topic] << uri      
+      
+      # e.g. 'hkey_apps/simplepubsub/subscription_topics/magic/subscribers/niko', 
+      #         'druby://niko:353524'
+      key = "hkey_apps/simplepubsub/subscription_topics/%s/subscribers/%s" % \
+          [topic, uri[/[^\/]+$/].sub(':','')]
+      @reg.set_key key, uri
     end   
     
     def deliver(topic, msg)
@@ -90,6 +116,9 @@ module SimplePubSub
             echo.message topic, msg
           rescue DRb::DRbConnError => e             
             @subscribers[topic].delete uri
+            key = "hkey_apps/simplepubsub/subscription_topics/%s/subscribers/%s" % \
+                [topic, uri[/[^\/]+$/].sub(':','')]
+            @reg.delete_key key
           end          
           
         end
