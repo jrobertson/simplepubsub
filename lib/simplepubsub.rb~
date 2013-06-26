@@ -54,9 +54,10 @@ module SimplePubSub
   
   class Server
       
-    attr_reader :subscribers
+    attr_reader :subscribers, :bridges
     
-    def initialize()
+    def initialize(hostname)
+      @hostname = hostname
       @subscribers = {'#' => []}
       @bridges = {'#' => []}
     end
@@ -114,16 +115,19 @@ module SimplePubSub
     
     def bridge_deliver(topic, message, excluded_host=nil)
       
-      if excluded_host then
+      return 'no matching topic' unless @bridges.has_key? topic
+      
+      if excluded_host  then
         bridges = @bridges[topic].select{|x| x != excluded_host}
       else
         bridges = @bridges[topic]
       end
       
-      bridges.each do |bridge|
-        url = "http://%s/do/simplepubsub/bridge_published?topic=%s&message=%s" % [address, topic, URI.escape(message)]
+      bridges.values.each do |address|
+        url = "http://%s/do/simplepubsub/bridgepub?topic=%s&hostname=%s&message=%s" % [address, topic, @hostname, URI.escape(message)]
         r = open(url, 'UserAgent' => USER_AGENT)
       end
+      'bridge delivered'
     end
     
   end
