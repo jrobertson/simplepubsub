@@ -7,7 +7,7 @@ require 'drb'
 require 'dws-registry'
 
 
-USER_AGENT = 'SimplePubSub client 0.3.2'
+USER_AGENT = 'SimplePubSub client 0.3.3'
 
 module SimplePubSub
 
@@ -115,8 +115,14 @@ module SimplePubSub
       
       # e.g. 'hkey_apps/simplepubsub/subscription_topics/magic/subscribers/niko', 
       #         'druby://niko:353524'
-      key = "hkey_apps/simplepubsub/subscription_topics/%s/subscribers/%s" % \
-          [topic, uri[/[^\/]+$/].sub(':','')]
+      if topic == '#' then
+        key = "hkey_apps/simplepubsub/subscription_all_topics/subscribers/%s" % \
+          [uri[/[^\/]+$/].sub(':','')]
+      else
+        key = "hkey_apps/simplepubsub/subscription_topics/%s/subscribers/%s" % \
+          [topic, uri[/[^\/]+$/].sub(':','')]        
+      end
+      
       @reg.set_key key, uri
     end   
     

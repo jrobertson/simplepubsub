@@ -7,7 +7,7 @@ require 'drb'
 require 'dws-registry'
 
 
-USER_AGENT = 'SimplePubSub client 0.3.1'
+USER_AGENT = 'SimplePubSub client 0.3.2'
 
 module SimplePubSub
 
@@ -67,7 +67,8 @@ module SimplePubSub
       # try to read the subscribers
       topics = @reg.get_key 'hkey_apps/simplepubsub/subscription_topics'
       
-      @subscribers = {'#' => []}     
+      @hostname = hostname
+      @subscribers, @bridges = {'#' => []}, {'#' => {}}     
             
       if topics then
         topics.elements.each do |topic_element|
@@ -76,10 +77,34 @@ module SimplePubSub
           @subscribers[topic] = topic_element.elements[0].elements.map(&:value)
         end
       end      
-            
-      @hostname = hostname
 
-      @bridges = {'#' => []}
+      
+      all_topics = @reg.get_key 'hkey_apps/simplepubsub/subscription_all_topics'
+
+      if all_topics then
+        @subscribers['#'] = all_topics.elements[0].elements.map(&:value)
+      end                        
+      
+
+      bridge_topics = @reg.get_key 'hkey_apps/simplepubsub/bridge_topics'               
+            
+      if bridge_topics then
+        bridge_topics.elements.each do |topic_element|
+          topic = topic_element.name
+          @bridges[topic] = topic_element.elements[0].elements.inject({}) do |r,x|
+            r.merge({x.name.to_s => x.text('address')})
+          end
+        end
+      end
+
+      bridge_all_topics = @reg.get_key 'hkey_apps/simplepubsub/bridge_all_topics'
+
+      if bridge_all_topics then
+        @bridges['#'] = bridge_all_topics.elements[0].elements.inject({}) do |r,x|
+          r.merge({x.name.to_s => x.text('address')})
+        end
+      end
+      'done'
     end
     
     def subscribe(topic, uri)
@@ -90,8 +115,14 @@ module SimplePubSub
       
       # e.g. 'hkey_apps/simplepubsub/subscription_topics/magic/subscribers/niko', 
       #         'druby://niko:353524'
-      key = "hkey_apps/simplepubsub/subscription_topics/%s/subscribers/%s" % \
-          [topic, uri[/[^\/]+$/].sub(':','')]
+      if topic == '#' then
+        key = "hkey_apps/simplepubsub/subscription_all_topics/subscribers/%s" % \
+          [uri[/[^\/]+$/].sub(':','')]
+      else
+        key = "hkey_apps/simplepubsub/subscription_topics/%s/subscribers/%s" % \
+          [topic, uri[/[^\/]+$/].sub(':','')]        
+      end
+      
       @reg.set_key key, uri
     end   
     
@@ -119,10 +150,19 @@ module SimplePubSub
           begin
             echo.message topic, msg
           rescue DRb::DRbConnError => e             
+            
             @subscribers[topic].delete uri
-            key = "hkey_apps/simplepubsub/subscription_topics/%s/subscribers/%s" % \
-                [topic, uri[/[^\/]+$/].sub(':','')]
+            
+            if @subscribers[topic].empty? then
+              @subscribers.delete topic 
+              key = "hkey_apps/simplepubsub/subscription_topics/%s" % [topic]
+            else
+              key = "hkey_apps/simplepubsub/subscription_topics/%s/subscribers/%s" % \
+                  [topic, uri[/[^\/]+$/].sub(':','')]              
+            end
+            
             @reg.delete_key key
+            
           end          
           
         end
@@ -134,16 +174,48 @@ module SimplePubSub
         
         begin
           echo.message topic, msg
-        rescue DRb::DRbConnError => e             
+        rescue DRb::DRbConnError => e
+          
           @subscribers['#'].delete uri
+          key = "hkey_apps/simplepubsub/subscription_all_topics/subscribers/%s" % \
+                [uri[/[^\/]+$/].sub(':','')]         
+          @reg.delete_key key          
         end          
 
       end
     end
     
     def add_bridge(topic, hostname, address)
-      @bridges[topic] ||= {}
-      @bridges[topic].merge!(hostname => address)
+      
+      if topic == '#' then
+
+        key = "hkey_apps/simplepubsub/bridge_all_topics/webserver/%s/address" % \
+            [hostname]        
+      else
+        topic.sub!('/','_')
+        @bridges[topic] ||= {}
+
+        key = "hkey_apps/simplepubsub/bridge_topics/%s/webserver/%s/address" % \
+            [topic, hostname]
+      end
+      
+      @bridges[topic].merge!(hostname => address)      
+      @reg.set_key key, address    
+    end
+    
+    def delete_bridge(topic, hostname)
+      
+      @bridges[topic].delete hostname
+      
+      if @bridges[topic].empty? and topic != '#' then        
+        @bridges.delete_key(topic)
+        key = "hkey_apps/simplepubsub/bridge_topics/%s" % [topic]
+      else
+        key = "hkey_apps/simplepubsub/bridge_topics/%s/webserver/%s/address" % \
+            [topic, hostname]                
+      end
+      
+      @reg.delete_key key      
     end
     
     def bridge_deliver(topic, message, excluded_host=nil)
