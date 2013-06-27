@@ -7,7 +7,7 @@ require 'drb'
 require 'dws-registry'
 
 
-USER_AGENT = 'SimplePubSub client 0.3'
+USER_AGENT = 'SimplePubSub client 0.3.1'
 
 module SimplePubSub
 
@@ -83,6 +83,8 @@ module SimplePubSub
     end
     
     def subscribe(topic, uri)
+      
+      topic.sub!('/','_')
       @subscribers[topic] ||= []
       @subscribers[topic] << uri      
       
@@ -94,6 +96,8 @@ module SimplePubSub
     end   
     
     def deliver(topic, msg)
+      
+      topic.sub!('/','_')
       
       if not @subscribers.include?(topic) and \
           not @subscribers.include?('#') then
@@ -153,7 +157,8 @@ module SimplePubSub
       end
       
       bridges.values.each do |address|
-        url = "http://%s/do/simplepubsub/bridgepub?topic=%s&hostname=%s&message=%s" % [address, topic, @hostname, URI.escape(message)]
+        url = "http://%s/do/simplepubsub/bridgepub?topic=%s&hostname=%s&message=%s" % \
+            [address, URI.escape(topic), @hostname, URI.escape(message)]
         r = open(url, 'UserAgent' => USER_AGENT)
       end
       'bridge delivered'
