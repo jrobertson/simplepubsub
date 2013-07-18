@@ -7,7 +7,7 @@ require 'drb'
 require 'dws-registry'
 
 
-USER_AGENT = 'SimplePubSub client 0.3.3'
+USER_AGENT = 'SimplePubSub client 0.4.0'
 
 module SimplePubSub
 
@@ -25,29 +25,39 @@ module SimplePubSub
         end
       end
 
-      def initialize(base_url)
-        @base_url = base_url
+      def initialize(hostname)
+        @hostname = hostname
       end
 
       def get(topic, &get_proc)
 
         DRb.start_service nil, Echo.new(&get_proc)
-        r = open("http://#{@base_url}/do/simplepubsub/" + \
-        "subscribe?topic=#{URI.escape(topic)}&uri=" + \
-          DRb.uri, 'UserAgent' => USER_AGENT){|x| x.read}
-        DRb.thread.join
+         
+        obj = DRbObject.new nil, "druby://#{@hostname}:59000"
+        obj.subscribe(topic, DRb.uri)
+        DRb.thread.join        
 
       end
 
       def publish(topic, message)
 
-        params = "/do/simplepubsub/publish?topic=%s&message=%s" % \
-         [URI.escape(topic),URI.escape(message)]
-        open('http://' + @base_url + params, 'UserAgent' => USER_AGENT)\
-          {|x| x.read}
+        DRb.start_service
+        obj = DRbObject.new nil, "druby://#{@hostname}:59000"
+        obj.deliver topic, message
       end
     end
 
+    attr_reader :remote_obj
+
+    # generally used by the web server
+    #
+    def initialize(hostname)
+      
+      DRb.start_service
+      # attach to the DRb server via a URI given on the command line
+      @remote_obj = DRbObject.new nil, "druby://#{hostname}:59000"      
+    end
+    
     def self.connect(base_url)
       yield(PubSub.new base_url)
     end
@@ -104,6 +114,17 @@ module SimplePubSub
           r.merge({x.name.to_s => x.text('address')})
         end
       end
+      'done'
+    end
+
+    def start()
+      
+      # start up the DRb service
+      DRb.start_service 'druby://:59000', self
+
+      # wait for the DRb service to finish before exiting
+      DRb.thread.join
+
       'done'
     end
     
