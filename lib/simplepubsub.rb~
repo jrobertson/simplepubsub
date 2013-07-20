@@ -122,9 +122,6 @@ module SimplePubSub
       # start up the DRb service
       DRb.start_service 'druby://:59000', self
 
-      # We need the uri of the service to connect a client
-      puts DRb.uri
-
       # wait for the DRb service to finish before exiting
       DRb.thread.join
 

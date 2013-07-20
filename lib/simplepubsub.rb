@@ -5,9 +5,9 @@
 require 'open-uri'
 require 'drb'
 require 'dws-registry'
+require 'socket'
 
-
-USER_AGENT = 'SimplePubSub client 0.4.0'
+USER_AGENT = 'SimplePubSub client 0.4'
 
 module SimplePubSub
 
@@ -67,7 +67,7 @@ module SimplePubSub
       
     attr_reader :subscribers, :bridges
     
-    def initialize(hostname, raw_reg='simplepubsub.xml')
+    def initialize(raw_reg='simplepubsub.xml')
 
 
       h = {DWSRegistry: ->{raw_reg}, String: ->{DWSRegistry.new raw_reg}}
@@ -77,7 +77,7 @@ module SimplePubSub
       # try to read the subscribers
       topics = @reg.get_key 'hkey_apps/simplepubsub/subscription_topics'
       
-      @hostname = hostname
+      @hostname = Socket.gethostname
       @subscribers, @bridges = {'#' => []}, {'#' => {}}     
             
       if topics then
@@ -165,43 +165,47 @@ module SimplePubSub
       
         topic_subscribers.each do |uri|
         
-          next if @subscribers['#'].include? uri              
-          echo = DRbObject.new nil, uri
+          next if @subscribers['#'].include? uri
           
-          begin
-            echo.message topic, msg
-          rescue DRb::DRbConnError => e             
+          Thread.new {
+            echo = DRbObject.new nil, uri
             
-            @subscribers[topic].delete uri
-            
-            if @subscribers[topic].empty? then
-              @subscribers.delete topic 
-              key = "hkey_apps/simplepubsub/subscription_topics/%s" % [topic]
-            else
-              key = "hkey_apps/simplepubsub/subscription_topics/%s/subscribers/%s" % \
-                  [topic, uri[/[^\/]+$/].sub(':','')]              
-            end
-            
-            @reg.delete_key key
-            
-          end          
+            begin
+              echo.message topic, msg
+            rescue DRb::DRbConnError => e             
+              
+              @subscribers[topic].delete uri
+              
+              if @subscribers[topic].empty? then
+                @subscribers.delete topic 
+                key = "hkey_apps/simplepubsub/subscription_topics/%s" % [topic]
+              else
+                key = "hkey_apps/simplepubsub/subscription_topics/%s/subscribers/%s" % \
+                    [topic, uri[/[^\/]+$/].sub(':','')]              
+              end
+              
+              @reg.delete_key key
+              
+            end          
+          }
           
         end
       end            
 
       @subscribers['#'].each do |uri|
-      
-        echo = DRbObject.new nil, uri
-        
-        begin
-          echo.message topic, msg
-        rescue DRb::DRbConnError => e
+        Thread.new {
+          echo = DRbObject.new nil, uri
           
-          @subscribers['#'].delete uri
-          key = "hkey_apps/simplepubsub/subscription_all_topics/subscribers/%s" % \
-                [uri[/[^\/]+$/].sub(':','')]         
-          @reg.delete_key key          
-        end          
+          begin
+            echo.message topic, msg
+          rescue DRb::DRbConnError => e
+            
+            @subscribers['#'].delete uri
+            key = "hkey_apps/simplepubsub/subscription_all_topics/subscribers/%s" % \
+                  [uri[/[^\/]+$/].sub(':','')]         
+            @reg.delete_key key          
+          end          
+        }
 
       end
     end
