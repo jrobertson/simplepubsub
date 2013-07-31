@@ -7,7 +7,7 @@ require 'drb'
 require 'dws-registry'
 require 'socket'
 
-USER_AGENT = 'SimplePubSub client 0.4'
+USER_AGENT = 'SimplePubSub client 0.5'
 
 module SimplePubSub
 
@@ -70,49 +70,39 @@ module SimplePubSub
     def initialize(raw_reg='simplepubsub.xml')
 
 
-      h = {DWSRegistry: ->{raw_reg}, String: ->{DWSRegistry.new raw_reg}}
+      h = {DWSRegistry: ->{raw_reg}, String: ->{DWSRegistry.new raw_reg},:'RSC::Package' => ->{raw_reg}}
 
       @reg = h[raw_reg.class.to_s.to_sym].call
-
-      # try to read the subscribers
-      topics = @reg.get_key 'hkey_apps/simplepubsub/subscription_topics'
       
+      doc = Rexle.new(@reg.xml('hkey_apps/simplepubsub'))
+
+      root = doc.root
+      # try to read the subscribers
+      topics = root.xpath 'subscription_topics/*'
+
       @hostname = Socket.gethostname
       @subscribers, @bridges = {'#' => []}, {'#' => {}}     
             
-      if topics then
-        topics.elements.each do |topic_element|
-          topic = topic_element.name
-          @subscribers[topic] ||= []
-          @subscribers[topic] = topic_element.elements[0].elements.map(&:value)
-        end
-      end      
+      topics.each do |topic_element|
+        topic = topic_element.name
+        @subscribers[topic] ||= []
+        @subscribers[topic] = topic_element.xpath 'subscribers/*/text()'
+      end
 
-      
-      all_topics = @reg.get_key 'hkey_apps/simplepubsub/subscription_all_topics'
+      @subscribers['#'] = root.xpath 'subscription_all_topics' + \
+          '/subscribers/*/text()'                            
 
-      if all_topics then
-        @subscribers['#'] = all_topics.elements[0].elements.map(&:value)
-      end                        
-      
-
-      bridge_topics = @reg.get_key 'hkey_apps/simplepubsub/bridge_topics'               
-            
-      if bridge_topics then
-        bridge_topics.elements.each do |topic_element|
-          topic = topic_element.name
-          @bridges[topic] = topic_element.elements[0].elements.inject({}) do |r,x|
-            r.merge({x.name.to_s => x.text('address')})
-          end
+      root.xpath('bridge_topics/*').each do |topic_element|
+        topic = topic_element.name
+        @bridges[topic] = topic_element.elements[0].elements.inject({}) do |r,x|
+          r.merge({x.name.to_s => x.text('address')})
         end
       end
 
-      bridge_all_topics = @reg.get_key 'hkey_apps/simplepubsub/bridge_all_topics'
 
-      if bridge_all_topics then
-        @bridges['#'] = bridge_all_topics.elements[0].elements.inject({}) do |r,x|
-          r.merge({x.name.to_s => x.text('address')})
-        end
+      @bridges['#'] = root.xpath('bridge_all_topics/subscribers/*')
+          .inject({}) do |r,x|
+        r.merge({x.name.to_s => x.text('address')})
       end
       'done'
     end

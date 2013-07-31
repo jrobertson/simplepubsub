@@ -7,7 +7,8 @@ require 'drb'
 require 'dws-registry'
 require 'socket'
 
-USER_AGENT = 'SimplePubSub client 0.5'
+
+USER_AGENT = 'SimplePbSub client 0.5'
 
 module SimplePubSub
 
@@ -104,6 +105,7 @@ module SimplePubSub
           .inject({}) do |r,x|
         r.merge({x.name.to_s => x.text('address')})
       end
+
       'done'
     end
 
@@ -154,14 +156,15 @@ module SimplePubSub
       if topic_subscribers then
       
         topic_subscribers.each do |uri|
-        
+
           next if @subscribers['#'].include? uri
           
           Thread.new {
-            echo = DRbObject.new nil, uri
-            
-            begin
+            begin          
+              
+              echo = DRbObject.new nil, uri            
               echo.message topic, msg
+              
             rescue DRb::DRbConnError => e             
               
               @subscribers[topic].delete uri
@@ -175,7 +178,6 @@ module SimplePubSub
               end
               
               @reg.delete_key key
-              
             end          
           }
           
@@ -184,9 +186,9 @@ module SimplePubSub
 
       @subscribers['#'].each do |uri|
         Thread.new {
-          echo = DRbObject.new nil, uri
           
           begin
+            echo = DRbObject.new nil, uri        
             echo.message topic, msg
           rescue DRb::DRbConnError => e
             
