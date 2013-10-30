@@ -6,6 +6,7 @@ require 'open-uri'
 require 'drb'
 require 'dws-registry'
 require 'socket'
+require 'chronic_duration'
 
 
 USER_AGENT = 'SimplePbSub client 0.5'
@@ -17,11 +18,17 @@ module SimplePubSub
 
       class Echo
 
-        def initialize(&get_proc)
+        def initialize(options, &get_proc)
+          
+          @interval = options[:interval]
+          @t1 = Time.now
           @get_proc = get_proc
         end
 
         def message(topic, message)
+                    
+          return if @interval and @t1 + ChronicDuration.parse(@interval) > Time.now          
+          @t1 = Time.now
           @get_proc.call topic, message
         end
       end
@@ -30,9 +37,9 @@ module SimplePubSub
         @hostname = hostname
       end
 
-      def get(topic, &get_proc)
+      def get(topic, options={}, &get_proc)
 
-        DRb.start_service nil, Echo.new(&get_proc)
+        DRb.start_service nil, Echo.new(options, &get_proc)
          
         obj = DRbObject.new nil, "druby://#{@hostname}:59000"
         obj.subscribe(topic, DRb.uri)
