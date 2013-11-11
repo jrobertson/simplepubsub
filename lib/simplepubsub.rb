@@ -30,12 +30,20 @@ module SimplePubSub
             puts "Received message: #{msg}"
 
             a = msg.split(/\s*:\s*/,2)
+
+            def ws.subscriber?() 
+              false
+            end
            
             if a.first == 'subscribe to topic' then
 
               topic = a.last.rstrip
               subscribers[topic] ||= []
-              subscribers[topic] << ws 
+              subscribers[topic] << ws
+
+              def ws.subscriber?() 
+                true
+              end
 
             elsif a.length > 1
 
@@ -49,7 +57,7 @@ module SimplePubSub
                 connections.each {|c| c.send topic + ': ' + message }
               end
 
-            ws.send msg, :type => type
+              ws.send msg, :type => type
 
             end
 
@@ -57,6 +65,7 @@ module SimplePubSub
 
           ws.onclose do
             puts "Client disconnected"
+            subscribers[topic].delete ws if ws.subscriber?
           end
         end
 
@@ -88,11 +97,7 @@ module SimplePubSub
       pubsub = PubSub.new
       yield(pubsub)
 
-      EM.run do
-
-        address = hostname + ':' + port
-
-        ws = WebSocket::EventMachine::Client.connect(:uri => 'ws://' + address)
+      blk = lambda do |ws, em_already_running|
 
         ws.onopen do
           puts "Connected"
@@ -103,7 +108,7 @@ module SimplePubSub
           a = msg.split(/\s*:\s*/,2)
           topic, message = a
           r = pubsub.proc.call topic, message
-          (ws.close; EM.stop) if r == :stop
+          (ws.close; EM.stop) if r == :stop and em_already_running == false
         end
 
         ws.onclose do
@@ -114,8 +119,26 @@ module SimplePubSub
           ws.send pubsub.topic + ': ' + pubsub.message
         end
 
-
       end
+
+      address = hostname + ':' + port
+      params = {uri: 'ws://' + address}
+      c = WebSocket::EventMachine::Client
+
+      begin
+
+        # attempt to run a websocket assuming the EventMachine is 
+        #   already running
+        ws = c.connect(params)
+        blk.call ws, em_already_running = true
+      rescue
+
+        EM.run do 
+          ws = c.connect(params)
+          blk.call(ws, em_already_running = false)
+        end
+      end
+
     end    
   end
 end
