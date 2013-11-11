@@ -33,7 +33,7 @@ module SimplePubSub
            
             if a.first == 'subscribe to topic' then
 
-              topic = a.last
+              topic = a.last.rstrip
               subscribers[topic] ||= []
               subscribers[topic] << ws 
 
@@ -46,12 +46,13 @@ module SimplePubSub
 
                 connections = subscribers[topic]
                 connections += subscribers['#'] if subscribers['#']
-                connections.each {|c| c.send message }
+                connections.each {|c| c.send topic + ': ' + message }
               end
+
+            ws.send msg, :type => type
 
             end
 
-            ws.send msg, :type => type
           end
 
           ws.onclose do
@@ -99,7 +100,7 @@ module SimplePubSub
 
         ws.onmessage do |msg, type|
 
-          a = msg.split(/\s*,\s*/,2)
+          a = msg.split(/\s*:\s*/,2)
           topic, message = a
           r = pubsub.proc.call topic, message
           (ws.close; EM.stop) if r == :stop
@@ -121,7 +122,22 @@ end
 
 if __FILE__ == $0 then
 
-  # Subscribe example
+  # Server example
   SimplePubSub::Server.new.start
 
+=begin
+
+  # Subscribe example
+  SimplePubSub::Client.connect('localhost') do |client|
+    client.get('test') do |topic, message|
+      puts "#{topic}: #{message}"
+    end 
+  end
+
+  # Publish example
+  SimplePubSub::Client.connect('localhost') do |client|
+    client.publish('test', Time.now.to_s)
+  end
+
+=end
 end
