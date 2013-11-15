@@ -41,23 +41,25 @@ module SimplePubSub
               subscribers[topic] ||= []
               subscribers[topic] << ws
 
-              def ws.subscriber?() 
-                true
-              end
+              def ws.subscriber_topic=(topic)  @topic = topic     end
+              def ws.subscriber_topic()  @topic                   end
+
+              ws.subscriber_topic = topic
 
             elsif a.length > 1
 
               puts "publish this %s: %s" % a
               topic, message = a
 
-              if subscribers[topic] and subscribers[topic].any? then
-
-                connections = subscribers[topic]
-                connections += subscribers['#'] if subscribers['#']
-                connections.each {|c| c.send topic + ': ' + message }
+              if subscribers[topic] then
+                subscribers[topic].each {|c| c.send topic + ': ' + message }
               end
 
-              ws.send msg, :type => type
+              if subscribers['#'] then
+                subscribers['#'].each {|c| c.send topic + ': ' + message }
+              end
+
+              #ws.send msg, :type => type
 
             end
 
@@ -65,7 +67,9 @@ module SimplePubSub
 
           ws.onclose do
             puts "Client disconnected"
-            subscribers[topic].delete ws if ws.subscriber?
+            if ws.respond_to? :subscriber_topic then
+              subscribers[ws.subscriber_topic].delete ws 
+            end
           end
         end
 
@@ -97,7 +101,7 @@ module SimplePubSub
       pubsub = PubSub.new
       yield(pubsub)
 
-      blk = lambda do |ws, em_already_running|
+      blk = lambda do |ws, pubsub, em_already_running|
 
         ws.onopen do
           puts "Connected"
@@ -130,12 +134,12 @@ module SimplePubSub
         # attempt to run a websocket assuming the EventMachine is 
         #   already running
         ws = c.connect(params)
-        blk.call ws, em_already_running = true
+        blk.call ws, pubsub, em_already_running = true
       rescue
 
         EM.run do 
           ws = c.connect(params)
-          blk.call(ws, em_already_running = false)
+          blk.call(ws, pubsub, em_already_running = false)
         end
       end
 
