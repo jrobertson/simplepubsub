@@ -112,7 +112,11 @@ module SimplePubSub
           a = msg.split(/\s*:\s*/,2)
           topic, message = a
           r = pubsub.proc.call topic, message
-          (ws.close; EM.stop) if r == :stop and em_already_running == false
+
+          if r == :stop then
+            ws.close
+            EM.stop if em_already_running == false
+          end
         end
 
         ws.onclose do
