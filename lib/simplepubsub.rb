@@ -36,7 +36,7 @@ module SimplePubSub
            
             if a.first == 'subscribe to topic' then
 
-              topic = a.last.rstrip #.gsub('+','*').gsub('#','//')
+              topic = a.last.rstrip.gsub('+','*').gsub('#','//')
               subscribers[topic] ||= []
               subscribers[topic] << ws
 
@@ -55,18 +55,14 @@ module SimplePubSub
               reg[current_topic] = message
 
               subscribers.each do |topic,conns|
-                if reg[topic] then
+
+                node = reg[topic]
+
+                if node and node.text.length >= 1 then                  
                   conns.each {|x| x.send current_topic + ': ' + message}
                 end
+
               end
-
-              #if subscribers[topic] then
-              #  subscribers[topic].each {|c| c.send topic + ': ' + message }
-              #end
-
-              #if subscribers['#'] then
-              #  subscribers['#'].each {|c| c.send topic + ': ' + message }
-              #end
 
               #ws.send msg, :type => type
 

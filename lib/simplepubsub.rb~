@@ -4,16 +4,15 @@
 
 require 'websocket-eventmachine-server'
 require 'websocket-eventmachine-client'
+require 'xml-registry'
 
 
 module SimplePubSub
 
   class Server
 
-    def start(options={})
+    def start(host: '0.0.0.0', port: 59000)
 
-      opt = {host: '0.0.0.0', port: 59000}.merge options
-      host, port = opt[:host], opt[:port]
 
       EM.run do
 
@@ -37,10 +36,11 @@ module SimplePubSub
            
             if a.first == 'subscribe to topic' then
 
-              topic = a.last.rstrip
+              topic = a.last.rstrip #.gsub('+','*').gsub('#','//')
               subscribers[topic] ||= []
               subscribers[topic] << ws
 
+              # affix the topic to the subscriber's websocket
               def ws.subscriber_topic=(topic)  @topic = topic     end
               def ws.subscriber_topic()  @topic                   end
 
@@ -49,15 +49,24 @@ module SimplePubSub
             elsif a.length > 1
 
               puts "publish this %s: %s" % a
-              topic, message = a
+              current_topic, message = a
 
-              if subscribers[topic] then
-                subscribers[topic].each {|c| c.send topic + ': ' + message }
+              reg = XMLRegistry.new
+              reg[current_topic] = message
+
+              subscribers.each do |topic,conns|
+                if reg[topic] then
+                  conns.each {|x| x.send current_topic + ': ' + message}
+                end
               end
 
-              if subscribers['#'] then
-                subscribers['#'].each {|c| c.send topic + ': ' + message }
-              end
+              #if subscribers[topic] then
+              #  subscribers[topic].each {|c| c.send topic + ': ' + message }
+              #end
+
+              #if subscribers['#'] then
+              #  subscribers['#'].each {|c| c.send topic + ': ' + message }
+              #end
 
               #ws.send msg, :type => type
 
@@ -96,7 +105,7 @@ module SimplePubSub
       end
     end
     
-    def self.connect(hostname, port='59000')
+    def self.connect(hostname, port='59000', options={})
 
       pubsub = PubSub.new
       yield(pubsub)
@@ -141,10 +150,13 @@ module SimplePubSub
         blk.call ws, pubsub, em_already_running = true
       rescue
 
-        EM.run do 
-          ws = c.connect(params)
-          blk.call(ws, pubsub, em_already_running = false)
+        thread = Thread.new do
+          EM.run do 
+            ws = c.connect(params)
+            blk.call(ws, pubsub, em_already_running = false)
+          end
         end
+        thread.join
       end
 
     end    
