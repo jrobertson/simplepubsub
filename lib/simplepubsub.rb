@@ -36,7 +36,8 @@ module SimplePubSub
            
             if a.first == 'subscribe to topic' then
 
-              topic = a.last.rstrip.gsub('+','*').gsub('#','//')
+              topic = a.last.rstrip.gsub('+','*')\
+                                              .gsub('#','*//').gsub('or','|')
               subscribers[topic] ||= []
               subscribers[topic] << ws
 
@@ -56,9 +57,9 @@ module SimplePubSub
 
               subscribers.each do |topic,conns|
 
-                node = reg[topic]
+                node = reg.doc.root.xpath topic.gsub(/\S\b/,'\0/text()')
 
-                if node and node.text.length >= 1 then                  
+                if node.any? then                  
                   conns.each {|x| x.send current_topic + ': ' + message}
                 end
 
