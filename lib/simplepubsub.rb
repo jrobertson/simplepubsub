@@ -11,7 +11,7 @@ module SimplePubSub
 
   class Server
 
-    def start(host: '0.0.0.0', port: 59000)
+    def self.start(host: '0.0.0.0', port: 59000)
 
 
       EM.run do
@@ -89,23 +89,25 @@ module SimplePubSub
 
       attr_reader :proc, :topic, :message
 
-      def get(topic, options={}, &get_proc)
+      def get(topic, &get_proc)
 
         @topic = 'subscribe to topic'
         @proc, @message = get_proc, topic
       end
 
-      def publish(topic, message)
+      def publish(*args)
+
+        topic, message = args.length > 1 ? args : args.first.split(':',2)
 
         @topic, @message = topic, message
-        @proc = ->(_,_){ :stop}
+        @proc = ->(_,_){}
       end
     end
     
-    def self.connect(hostname, port='59000', options={})
+    def self.connect(hostname, port: '59000', &connect_blk)
 
       pubsub = PubSub.new
-      yield(pubsub)
+      connect_blk.call(pubsub)
 
       blk = lambda do |ws, pubsub, em_already_running|
 
@@ -117,16 +119,26 @@ module SimplePubSub
 
           a = msg.split(/\s*:\s*/,2)
           topic, message = a
-          r = pubsub.proc.call topic, message
+          EM.defer {pubsub.proc.call topic, message}
 
-          if r == :stop then
-            ws.close
-            EM.stop if em_already_running == false
-          end
         end
 
         ws.onclose do
           puts "Disconnected"
+
+          # reconnect within a minute
+          seconds = rand(60)
+
+          seconds.downto(1) do |i| 
+            s = "reconnecting in %s seconds" % i; 
+            print s 
+            sleep 1
+            print "\b" * s.length
+          end
+          puts
+
+
+          self.connect hostname, port: port, &connect_blk
         end
 
         EventMachine.next_tick do
@@ -143,13 +155,15 @@ module SimplePubSub
 
         # attempt to run a websocket assuming the EventMachine is 
         #   already running
-        ws = c.connect(params)
+
+        ws = c.connect(params, &connect_blk)
         blk.call ws, pubsub, em_already_running = true
       rescue
 
         thread = Thread.new do
           EM.run do 
-            ws = c.connect(params)
+
+            ws = c.connect(params, &connect_blk)
             blk.call(ws, pubsub, em_already_running = false)
           end
         end
