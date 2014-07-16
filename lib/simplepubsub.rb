@@ -126,13 +126,12 @@ module SimplePubSub
 
         ws.onclose do
 
-          puts 'retry_count : ' + retry_count.inspect
 
           if retry_count and retry_count <= 3 then
             puts "Disconnected"
 
             # reconnect within a minute
-            seconds = rand(10)
+            seconds = rand(60)
 
             seconds.downto(1) do |i| 
               s = "reconnecting in %s seconds" % i; 

@@ -9,7 +9,7 @@ require 'xml-registry'
 
 module SimplePubSub
 
-  class Server
+  class Broker
 
     def self.start(host: '0.0.0.0', port: 59000)
 
@@ -89,7 +89,7 @@ module SimplePubSub
 
       attr_reader :proc, :topic, :message
 
-      def get(topic, &get_proc)
+      def get(topic, options={}, &get_proc)
 
         @topic = 'subscribe to topic'
         @proc, @message = get_proc, topic
@@ -104,7 +104,7 @@ module SimplePubSub
       end
     end
     
-    def self.connect(hostname, port: '59000', &connect_blk)
+    def self.connect(hostname, port: '59000', retry_count: nil, &connect_blk)
 
       pubsub = PubSub.new
       connect_blk.call(pubsub)
@@ -113,6 +113,7 @@ module SimplePubSub
 
         ws.onopen do
           puts "Connected"
+          retry_count = 0
         end
 
         ws.onmessage do |msg, type|
@@ -124,21 +125,28 @@ module SimplePubSub
         end
 
         ws.onclose do
-          puts "Disconnected"
 
-          # reconnect within a minute
-          seconds = rand(60)
+          puts 'retry_count : ' + retry_count.inspect
 
-          seconds.downto(1) do |i| 
-            s = "reconnecting in %s seconds" % i; 
-            print s 
-            sleep 1
-            print "\b" * s.length
+          if retry_count and retry_count <= 3 then
+            puts "Disconnected"
+
+            # reconnect within a minute
+            seconds = rand(60)
+
+            seconds.downto(1) do |i| 
+              s = "reconnecting in %s seconds" % i; 
+              print s 
+              sleep 1
+              print "\b" * s.length
+            end
+            puts
+
+
+            self.connect hostname, port: port, retry_count: retry_count+1, &connect_blk
+          else
+            puts 'Unable to connect'
           end
-          puts
-
-
-          self.connect hostname, port: port, &connect_blk
         end
 
         EventMachine.next_tick do
@@ -156,14 +164,14 @@ module SimplePubSub
         # attempt to run a websocket assuming the EventMachine is 
         #   already running
 
-        ws = c.connect(params, &connect_blk)
+        ws = c.connect(params)
         blk.call ws, pubsub, em_already_running = true
       rescue
 
         thread = Thread.new do
           EM.run do 
 
-            ws = c.connect(params, &connect_blk)
+            ws = c.connect(params)
             blk.call(ws, pubsub, em_already_running = false)
           end
         end
@@ -177,7 +185,7 @@ end
 if __FILE__ == $0 then
 
   # Server example
-  SimplePubSub::Server.new.start
+  SimplePubSub::Broker.start
 
 =begin
 
