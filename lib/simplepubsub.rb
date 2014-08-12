@@ -57,7 +57,7 @@ module SimplePubSub
 
               subscribers.each do |topic,conns|
 
-                node = reg.doc.root.xpath topic.gsub(/\S\b/,'\0/text()')
+                node = reg.doc.root.xpath topic.sub(/\S\b$/,'\0/text()')
 
                 if node.any? then                  
                   conns.each {|x| x.send current_topic + ': ' + message}
@@ -104,8 +104,9 @@ module SimplePubSub
       end
     end
     
-    def self.connect(hostname, port: '59000', retry_count: nil, &connect_blk)
+    def self.connect(hostname, port: '59000', auto_retry: true, &connect_blk)
 
+      retry_count = nil
       pubsub = PubSub.new
       connect_blk.call(pubsub)
 
@@ -127,7 +128,7 @@ module SimplePubSub
         ws.onclose do
 
 
-          if retry_count and retry_count <= 3 then
+          if auto_retry and retry_count and retry_count <= 3 then
             puts "Disconnected"
 
             # reconnect within a minute
@@ -144,7 +145,7 @@ module SimplePubSub
 
             self.connect hostname, port: port, retry_count: retry_count+1, &connect_blk
           else
-            puts 'Unable to connect'
+            puts 'Unable to connect' if auto_retry
           end
         end
 
