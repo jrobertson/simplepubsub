@@ -28,7 +28,7 @@ module SimplePubSub
 
             puts "Received message: #{msg}"
 
-            a = msg.split(/\s*:\s*/,2)
+            a = msg.strip.split(/\s*:\s*/,2)
 
             def ws.subscriber?() 
               false
