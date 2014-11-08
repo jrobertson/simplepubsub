@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'simplepubsub'
-  s.version = '1.1.7'
+  s.version = '1.1.8'
   s.summary = 'simplepubsub'
   s.authors = ['James Robertson']
   s.files = Dir['lib/**/*.rb']

@@ -21,12 +21,12 @@ module SimplePubSub
         WebSocket::EventMachine::Server.start(host: host, port: port) do |ws|
 
           ws.onopen do
-            puts "Client connected"
+            #puts "Client connected"
           end
 
           ws.onmessage do |msg, type|
 
-            puts "Received message: #{msg}"
+            #puts "Received message: #{msg}"
 
             a = msg.strip.split(/\s*:\s*/,2)
 
@@ -49,7 +49,7 @@ module SimplePubSub
 
             elsif a.length > 1
 
-              puts "publish this %s: %s" % a
+              #puts "publish this %s: %s" % a
               current_topic, message = a
 
               reg = XMLRegistry.new
@@ -64,7 +64,7 @@ module SimplePubSub
                 end
 
               end
-
+              reg = nil
               #ws.send msg, :type => type
 
             end
@@ -72,7 +72,7 @@ module SimplePubSub
           end
 
           ws.onclose do
-            puts "Client disconnected"
+            #puts "Client disconnected"
             if ws.respond_to? :subscriber_topic then
               subscribers[ws.subscriber_topic].delete ws 
             end
