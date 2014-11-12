@@ -11,8 +11,8 @@ module SimplePubSub
 
   class Broker
 
-    def self.start(host: '0.0.0.0', port: 59000)
-
+    #def self.start(host: '0.0.0.0', port: 59000)
+    def self.start(host='0.0.0.0', port=59000)
 
       EM.run do
 
@@ -80,9 +80,9 @@ module SimplePubSub
         end
 
       end
-    end
+    end    
   end
-
+ 
   class Client
 
     class PubSub
@@ -103,8 +103,8 @@ module SimplePubSub
         @proc = ->(_,_){}
       end
     end
-    
-    def self.connect(hostname, port: '59000', auto_retry: true, &connect_blk)
+   
+    def self.connect(hostname, port='59000', auto_retry=true, &connect_blk)
 
       retry_count = nil
       pubsub = PubSub.new
@@ -177,8 +177,9 @@ module SimplePubSub
         end
         thread.join
       end
-
-    end    
+  
+    end
+  
   end
 end
 
