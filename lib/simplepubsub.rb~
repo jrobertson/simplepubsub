@@ -51,6 +51,7 @@ module SimplePubSub
 
               #puts "publish this %s: %s" % a
               current_topic, message = a
+              return if current_topic[/ /] # contains 1 or more spaces
 
               reg = XMLRegistry.new
               reg[current_topic] = message
