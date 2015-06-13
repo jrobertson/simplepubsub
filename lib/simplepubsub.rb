@@ -26,8 +26,7 @@ module SimplePubSub
 
           ws.onmessage do |msg, type|
 
-            #puts "Received message: #{msg}"
-
+            msg = '' if not msg[0][/\w/]
             a = msg.strip.split(/\s*:\s*/,2)
 
             def ws.subscriber?() 
@@ -51,7 +50,8 @@ module SimplePubSub
 
               #puts "publish this %s: %s" % a
               current_topic, message = a
-              return if current_topic =~ /[^a-zA-Z0-9\/_]/ 
+              return if current_topic[0] == '/'
+              return if current_topic =~ /[^a-zA-Z0-9\/_]/
 
               reg = XMLRegistry.new
               reg[current_topic] = message
