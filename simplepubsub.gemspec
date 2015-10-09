@@ -1,13 +1,12 @@
 Gem::Specification.new do |s|
   s.name = 'simplepubsub'
-  s.version = '1.1.14'
-  s.summary = 'simplepubsub'
+  s.version = '1.2.0'
+  s.summary = 'The SimplePubSub gem is a messaging broker which uses Eventmachine + websockets.'
   s.authors = ['James Robertson']
-  s.files = Dir['lib/**/*.rb']
+  s.files = Dir['lib/simplepubsub.rb']
   s.signing_key = '../privatekeys/simplepubsub.pem'
   s.cert_chain  = ['gem-public_cert.pem']  
   s.add_runtime_dependency('websocket-eventmachine-server', '~> 1.0', '>=1.0.1')
-  s.add_runtime_dependency('websocket-eventmachine-client', '~> 1.0', '>=1.1.0')
   s.add_runtime_dependency('xml-registry', '~> 0.2', '>=0.2.3')
   s.license = 'MIT'
   s.email = 'james@r0bertson.co.uk'
