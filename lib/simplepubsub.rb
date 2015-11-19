@@ -31,6 +31,7 @@ module SimplePubSub
             def ws.subscriber?() 
               false
             end
+            
            
             if a.first == 'subscribe to topic' then
 
@@ -47,32 +48,34 @@ module SimplePubSub
 
             elsif a.length > 1 and a.first != ''
 
-              #puts "publish this %s: %s" % a
               current_topic, message = a
-              return if current_topic[0] == '/'
-              return if current_topic =~ /[^a-zA-Z0-9\/_]/
+              
+              if not current_topic[0] == '/' and \
+                                not current_topic =~ /[^a-zA-Z0-9\/_ ]$/ then
+                
+                reg = XMLRegistry.new
+                reg[current_topic] = message
 
-              reg = XMLRegistry.new
-              reg[current_topic] = message
+                subscribers.each do |topic,conns|
 
-              subscribers.each do |topic,conns|
+                  node = reg.doc.root.xpath topic.sub(/\S\b$/,'\0/text()')
 
-                node = reg.doc.root.xpath topic.sub(/\S\b$/,'\0/text()')
+                  if node.any? then                  
+                    conns.each {|x| x.send current_topic + ': ' + message}
+                  end
 
-                if node.any? then                  
-                  conns.each {|x| x.send current_topic + ': ' + message}
                 end
-
+                
+                reg = nil
+                
               end
-              reg = nil
-              #ws.send msg, :type => type
 
             end
 
           end
 
           ws.onclose do
-            #puts "Client disconnected"
+
             if ws.respond_to? :subscriber_topic then
               subscribers[ws.subscriber_topic].delete ws 
             end
