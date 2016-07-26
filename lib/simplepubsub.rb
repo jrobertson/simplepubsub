@@ -26,7 +26,7 @@ module SimplePubSub
           ws.onmessage do |msg, type|
 
             msg = '' if not msg[0][/\w/]
-            a = msg.strip.split(/\s*:\s*/,2)
+            a = msg.lstrip.split(/\s*:\s/,2)
 
             def ws.subscriber?() 
               false
@@ -53,12 +53,21 @@ module SimplePubSub
               if not current_topic[0] == '/' and \
                                 not current_topic =~ /[^a-zA-Z0-9\/_ ]$/ then
                 
-                reg = XMLRegistry.new
-                reg[current_topic] = message
+                begin
+                  
+                  reg = XMLRegistry.new
+                  reg[current_topic] = message
+                
+                rescue
+                  puts 'simplepubsub.rb warning: ' + ($!).inspect
+                end
 
                 subscribers.each do |topic,conns|
-
-                  node = reg.doc.root.xpath topic.sub(/\S\b$/,'\0/text()')
+                  
+                  xpath = topic.split('/')\
+                      .map {|x| x.to_i.to_s == x ? x.prepend('x') : x}\
+                      .join('/')
+                  node = reg.doc.root.xpath xpath.sub(/\S\b$/,'\0/text()')
 
                   if node.any? then                  
                     conns.each {|x| x.send current_topic + ': ' + message}

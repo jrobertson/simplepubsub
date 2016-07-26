@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'simplepubsub'
-  s.version = '1.2.1'
+  s.version = '1.2.2'
   s.summary = 'The SimplePubSub gem is a messaging broker which uses Eventmachine + websockets.'
   s.authors = ['James Robertson']
   s.files = Dir['lib/simplepubsub.rb']
