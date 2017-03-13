@@ -9,6 +9,7 @@ require 'xml-registry'
 module SimplePubSub
 
   class Broker
+    
 
     def self.start(host: '0.0.0.0', port: 59000)
 
@@ -36,7 +37,7 @@ module SimplePubSub
             if a.first == 'subscribe to topic' then
 
               topic = a.last.rstrip.gsub('+','*')\
-                                              .gsub('#','*//').gsub('or','|')
+                                              .gsub('#','*//').gsub(/\bor/,'|')
               subscribers[topic] ||= []
               subscribers[topic] << ws
 
@@ -51,8 +52,7 @@ module SimplePubSub
               current_topic, message = a
               
               if not current_topic[0] == '/' and \
-                                not current_topic =~ /[^a-zA-Z0-9\/_ ]$/ then
-                
+                                not current_topic =~ /[^a-zA-Z0-9\/_ ]$/ then                
                 begin
                   
                   reg = XMLRegistry.new
@@ -60,13 +60,14 @@ module SimplePubSub
                 
                 rescue
                   puts 'simplepubsub.rb warning: ' + ($!).inspect
-                end
+                end                
 
                 subscribers.each do |topic,conns|
                   
                   xpath = topic.split('/')\
                       .map {|x| x.to_i.to_s == x ? x.prepend('x') : x}\
                       .join('/')
+
                   node = reg.doc.root.xpath xpath.sub(/\S\b$/,'\0/text()')
 
                   if node.any? then                  
