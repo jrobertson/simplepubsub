@@ -2,8 +2,11 @@
 
 # file: simplepubsub.rb
 
-require 'websocket-eventmachine-server'
+require "socket"
+require 'sps-pub'
 require 'xml-registry'
+require 'websocket-eventmachine-server'
+
 
 
 module SimplePubSub
@@ -11,7 +14,7 @@ module SimplePubSub
   class Broker
     
 
-    def self.start(host: '0.0.0.0', port: 59000)
+    def self.start(host: '0.0.0.0', port: 59000, brokers: [])
 
 
       EM.run do
@@ -26,7 +29,7 @@ module SimplePubSub
 
           ws.onmessage do |msg, type|
 
-            msg = '' if not msg[0][/\w/]
+            msg = '' if not msg[0][/[\w:]/]
             a = msg.lstrip.split(/\s*:\s/,2)
 
             def ws.subscriber?() 
@@ -50,6 +53,33 @@ module SimplePubSub
             elsif a.length > 1 and a.first != ''
 
               current_topic, message = a
+              
+              # is the message from another SPS broker?
+              
+              if current_topic[0] == ':' then
+                
+                # strip of the broker ID
+                current_topic.sub!(/:\w+\//,'')
+                
+              elsif brokers.any?                                
+                
+                brokers.each do |broker|
+                
+                  hostx, portx = broker.split(':',2)
+                  portx ||= port
+
+                  
+                  #puts 'address: ' + address.inspect
+                  fqm = ":%s/%s: %s" % [Socket.gethostname, current_topic, message]
+
+                  begin
+                    SPSPub.notice fqm, host: hostx, port: portx
+                  rescue
+                    puts "warning couldn\'t send to %s:%s" % [hostx, portx]
+                  end
+                  #sleep 0.5 
+                end
+              end
               
               if not current_topic[0] == '/' and \
                                 not current_topic =~ /[^a-zA-Z0-9\/_ ]$/ then                
