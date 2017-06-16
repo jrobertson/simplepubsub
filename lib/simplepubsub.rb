@@ -14,9 +14,9 @@ module SimplePubSub
   class Broker
     
 
-    def self.start(host: '0.0.0.0', port: 59000, brokers: [])
+    def self.start(host: '0.0.0.0', port: 59000, brokers: [], debug: false)
 
-
+            
       EM.run do
 
         subscribers = {}
@@ -28,7 +28,10 @@ module SimplePubSub
           end
 
           ws.onmessage do |msg, type|
-
+            
+            puts 'msg: ' + msg.inspect if debug
+            next if msg.empty?
+            
             msg = '' if not msg[0][/[\w:]/]
             a = msg.lstrip.split(/\s*:\s/,2)
 
