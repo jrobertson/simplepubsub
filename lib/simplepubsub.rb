@@ -53,6 +53,11 @@ module SimplePubSub
 
               ws.subscriber_topic = topic
 
+            elsif a.first == 'shutdown' then
+              
+              puts 'shutting down ...'
+              EM.stop
+              
             elsif a.length > 1 and a.first != ''
 
               current_topic, message = a
@@ -61,7 +66,7 @@ module SimplePubSub
               
               if current_topic[0] == ':' then
                 
-                # strip of the broker ID
+                # strip off the broker ID
                 current_topic.sub!(/:\w+\//,'')
                 
               elsif brokers.any?                                
